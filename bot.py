@@ -4,38 +4,91 @@ import aiohttp
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-# قائمة المنصات الثماني ورابط فحص اليوزر عليها
-PLATFORMS = {
-    "Telegram": "https://t.me/{}",
-    "Instagram": "https://www.instagram.com/{}/",
-    "TikTok": "https://www.tiktok.com/@{}",
-    "Twitter (X)": "https://twitter.com/{}",
-    "GitHub": "https://github.com/{}",
-    "Pinterest": "https://pinterest.com/{}",
-    "SoundCloud": "https://soundcloud.com/{}",
-    "Steam": "https://steamcommunity.com/id/{}"
-}
-
-async def check_username(session, url, username):
-    target_url = url.format(username)
+# التحقق الدقيق لكل منصة
+async def check_username(session, platform, username):
     headers = {
-        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
     }
+    
     try:
-        async with session.get(target_url, headers=headers, timeout=5) as response:
-            # المنصات عادة تعطي 404 إذا كان اليوزر غير متاح/موجود، أو يعتمد على منطق الموقع
-            # للتوضيح: 404 تعني أن الصفحة غير موجودة وغالباً اليوزر متاح للتسجيل
-            if response.status == 404:
+        if platform == "Telegram":
+            url = f"https://t.me/{username}"
+            async with session.get(url, headers=headers, timeout=5) as resp:
+                if resp.status == 200:
+                    text = await resp.text()
+                    # تليجرام يعرض صفحة القناة/المستخدم إذا كان موجوداً
+                    if "tgme_page_title" in text or "tgme_channel_info" in text:
+                        return "مستخدم ❌"
                 return "متاح ✅"
-            else:
+
+        elif platform == "Instagram":
+            url = f"https://www.instagram.com/{username}/"
+            async with session.get(url, headers=headers, timeout=5) as resp:
+                if resp.status == 404:
+                    return "متاح ✅"
+                elif resp.status == 200:
+                    text = await resp.text()
+                    if "Sorry, this page isn't available." in text or "تم إلغاء تنشيط الصفحة" in text:
+                        return "متاح ✅"
+                    return "مستخدم ❌"
                 return "مستخدم ❌"
+
+        elif platform == "TikTok":
+            url = f"https://www.tiktok.com/@{username}"
+            async with session.get(url, headers=headers, timeout=5) as resp:
+                if resp.status == 404:
+                    return "متاح ✅"
+                elif resp.status == 200:
+                    text = await resp.text()
+                    if "Couldn't find this account" in text or "التعرف على حسابات أخرى" in text:
+                        return "متاح ✅"
+                    return "مستخدم ❌"
+                return "مستخدم ❌"
+
+        elif platform == "Twitter (X)":
+            url = f"https://twitter.com/{username}"
+            async with session.get(url, headers=headers, timeout=5) as resp:
+                if resp.status == 404:
+                    return "متاح ✅"
+                return "مستخدم ❌"
+
+        elif platform == "GitHub":
+            url = f"https://github.com/{username}"
+            async with session.get(url, headers=headers, timeout=5) as resp:
+                if resp.status == 404:
+                    return "متاح ✅"
+                return "مستخدم ❌"
+
+        elif platform == "Pinterest":
+            url = f"https://www.pinterest.com/{username}/"
+            async with session.get(url, headers=headers, timeout=5) as resp:
+                if resp.status == 404:
+                    return "متاح ✅"
+                return "مستخدم ❌"
+
+        elif platform == "SoundCloud":
+            url = f"https://soundcloud.com/{username}"
+            async with session.get(url, headers=headers, timeout=5) as resp:
+                if resp.status == 404:
+                    return "متاح ✅"
+                return "مستخدم ❌"
+
+        elif platform == "Steam":
+            url = f"https://steamcommunity.com/id/{username}"
+            async with session.get(url, headers=headers, timeout=5) as resp:
+                if resp.status == 404 or resp.status == 500:
+                    return "متاح ✅"
+                return "مستخدم ❌"
+
     except Exception:
         return "غير معروف ⚠️"
+    
+    return "مستخدم ❌"
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "أهلاً بك في بوت فحص اليوزرات الشامل! 🚀\n\n"
-        "أرسل أي اسم مستخدم (Username) وسأقوم بفحص توفره على 8 منصات شهيرة فوراً."
+        "أهلاً بك في بوت فحص اليوزرات المطور والدقيق! 🚀\n\n"
+        "أرسل أي اسم مستخدم (Username) وسأقوم بفحص توفره على المنصات بدقة عالية."
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -43,21 +96,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not username:
         return
 
-    msg = await update.message.reply_text(f"🔍 جاري فحص اليوزر: @{username} على المنصات...")
+    msg = await update.message.reply_text(f"🔍 جاري الفحص بدقة لليوزر: @{username}...")
 
+    platforms = ["Telegram", "Instagram", "TikTok", "Twitter (X)", "GitHub", "Pinterest", "SoundCloud", "Steam"]
+    
     results = []
     async with aiohttp.ClientSession() as session:
-        tasks = []
-        platform_names = list(PLATFORMS.keys())
-        for name, url in PLATFORMS.items():
-            tasks.append(check_username(session, url, username))
-        
+        tasks = [check_username(session, p, username) for p in platforms]
         statuses = await asyncio.gather(*tasks)
 
-        for name, status in zip(platform_names, statuses):
+        for name, status in zip(platforms, statuses):
             results.append(f"- **{name}**: {status}")
 
-    report = f"نتائج الفحص لليوزر: `@{username}`\n\n" + "\n".join(results)
+    report = f"📊 نتائج الفحص الدقيق لليوزر: `@{username}`\n\n" + "\n".join(results)
     await context.bot.edit_message_text(chat_id=update.effective_chat.id, message_id=msg.message_id, text=report, parse_mode="Markdown")
 
 def main():

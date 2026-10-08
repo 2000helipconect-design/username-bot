@@ -4,7 +4,7 @@ import aiohttp
 from telegram import Update
 from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, ContextTypes, filters
 
-# التحقق الدقيق لكل منصة
+# التحقق الدقيق لكل منصة (المنصات العامة + منصات الألعاب)
 async def check_username(session, platform, username):
     headers = {
         "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
@@ -16,7 +16,6 @@ async def check_username(session, platform, username):
             async with session.get(url, headers=headers, timeout=5) as resp:
                 if resp.status == 200:
                     text = await resp.text()
-                    # تليجرام يعرض صفحة القناة/المستخدم إذا كان موجوداً
                     if "tgme_page_title" in text or "tgme_channel_info" in text:
                         return "مستخدم ❌"
                 return "متاح ✅"
@@ -80,6 +79,22 @@ async def check_username(session, platform, username):
                     return "متاح ✅"
                 return "مستخدم ❌"
 
+        # --- قسم الألعاب الجديد ---
+        elif platform == "Roblox":
+            url = f"https://www.roblox.com/user.aspx?username={username}"
+            async with session.get(url, headers=headers, timeout=5) as resp:
+                if resp.status == 404:
+                    return "متاح ✅"
+                return "مستخدم ❌"
+
+        elif platform == "Epic Games":
+            # إبピック قيمز يعتمد على واجهة برمجية، نتحقق بالرابط أو الحالة
+            url = f"https://www.epicgames.com/id/{username}"
+            async with session.get(url, headers=headers, timeout=5) as resp:
+                if resp.status == 404:
+                    return "متاح ✅"
+                return "مستخدم ❌"
+
     except Exception:
         return "غير معروف ⚠️"
     
@@ -87,8 +102,8 @@ async def check_username(session, platform, username):
 
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "أهلاً بك في بوت فحص اليوزرات المطور والدقيق! 🚀\n\n"
-        "أرسل أي اسم مستخدم (Username) وسأقوم بفحص توفره على المنصات بدقة عالية."
+        "أهلاً بك في بوت فحص اليوزرات الشامل (منصات وألعاب)! 🚀🎮\n\n"
+        "أرسل أي اسم مستخدم (Username) وسأقوم بفحص توفره على منصات التواصل الاجتماعي وأشهر منصات الألعاب بدقة عالية."
     )
 
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -96,9 +111,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not username:
         return
 
-    msg = await update.message.reply_text(f"🔍 جاري الفحص بدقة لليوزر: @{username}...")
+    msg = await update.message.reply_text(f"🔍 جاري الفحص الشامل (منصات وألعاب) لليوزر: @{username}...")
 
-    platforms = ["Telegram", "Instagram", "TikTok", "Twitter (X)", "GitHub", "Pinterest", "SoundCloud", "Steam"]
+    # ترتيب المنصات وتشمل التواصل الاجتماعي والألعاب
+    platforms = [
+        "Telegram", "Instagram", "TikTok", "Twitter (X)", 
+        "GitHub", "Pinterest", "SoundCloud", "Steam",
+        "Roblox", "Epic Games"
+    ]
     
     results = []
     async with aiohttp.ClientSession() as session:
@@ -108,7 +128,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for name, status in zip(platforms, statuses):
             results.append(f"- **{name}**: {status}")
 
-    report = f"📊 نتائج الفحص الدقيق لليوزر: `@{username}`\n\n" + "\n".join(results)
+    report = f"📊 نتائج الفحص الشامل لليوزر: `@{username}`\n\n" + "\n".join(results)
     await context.bot.edit_message_text(chat_id=update.effective_chat.id, message_id=msg.message_id, text=report, parse_mode="Markdown")
 
 def main():

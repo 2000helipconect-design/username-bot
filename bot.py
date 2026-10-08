@@ -1,7 +1,7 @@
 import os
 import asyncio
 from telegram import Update
-from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, filters
+from telegram.ext import ApplicationBuilder, ContextTypes, MessageHandler, CommandHandler, filters
 import aiohttp
 
 # قراءة التوكن بأمان من إعدادات السيرفر (مخفي تماماً)
@@ -28,6 +28,13 @@ async def check_url(session, url):
             return False
     except Exception:
         return False
+
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "👋 أهلاً بك في بوت فحص اليوزرات!\n\n"
+        "فقط أرسل لي اسم المستخدم (مثل: `username`) وسأقوم بفحصه لك فوراً على جميع المنصات.",
+        parse_mode="Markdown"
+    )
 
 async def check_username(update: Update, context: ContextTypes.DEFAULT_TYPE):
     username = update.message.text.strip().lstrip('@')
@@ -61,7 +68,11 @@ def main():
         return
         
     app = ApplicationBuilder().token(TOKEN).build()
+    
+    # إضافة معالج أمر البدء ومعالج الرسائل النصية
+    app.add_handler(CommandHandler("start", start_command))
     app.add_handler(MessageHandler(filters.TEXT & (~filters.COMMAND), check_username))
+    
     app.run_polling()
 
 if __name__ == "__main__":

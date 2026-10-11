@@ -12,7 +12,7 @@ from telegram.ext import (
 )
 
 # ------------------------------------------------------------------
-‎# 
+# General Settings
 # ------------------------------------------------------------------
 HEADERS = {
     "User-Agent": (
@@ -42,10 +42,10 @@ _last_use = {}
 
 
 # ------------------------------------------------------------------
-‎# أدوات الطلبات
+# Request Tools
 # ------------------------------------------------------------------
 async def fetch(session, url, want_json=False):
-‎    """يرجع (status, body, final_url) أو (None, None, '') عند الفشل."""
+    """يرجع (status, body, final_url) أو (None, None, '') عند الفشل."""
     try:
         async with session.get(url, allow_redirects=True) as resp:
             if want_json:
@@ -61,8 +61,8 @@ async def fetch(session, url, want_json=False):
 
 
 def by_status(url_tpl, conf="medium"):
-‎    """404 = متاح، 200 = مستخدم، أي شيء ثاني = غير مؤكد.
-‎    وإذا تم تحويلنا لصفحة ما فيها اليوزر (تسجيل دخول، موافقة كوكيز) = غير مؤكد."""
+    """404 = متاح، 200 = مستخدم، أي شيء ثاني = غير مؤكد.
+    وإذا تم تحويلنا لصفحة ما فيها اليوزر (تسجيل دخول، موافقة كوكيز) = غير مؤكد."""
     async def check(session, u):
         status, _, final = await fetch(session, url_tpl.format(u=quote(u)))
         if status is None or u.lower() not in final.lower():
@@ -76,7 +76,7 @@ def by_status(url_tpl, conf="medium"):
 
 
 # ------------------------------------------------------------------
-‎# فحوصات مخصصة (تعتمد على APIs واضحة، أدق من فحص الصفحات)
+# Custom Checks
 # ------------------------------------------------------------------
 async def check_gitlab(session, u):
     status, data, _ = await fetch(
@@ -152,7 +152,7 @@ async def check_telegram(session, u):
 
 
 # ------------------------------------------------------------------
-‎# قائمة المنصات: (الاسم، الفاحص، نمط اليوزر الصالح أو None)
+# Platforms List
 # ------------------------------------------------------------------
 RELIABLE = [
     ("GitHub",   by_status("https://github.com/{u}", "high"),
@@ -191,7 +191,6 @@ APPROX = [
     ("osu!",     by_status("https://osu.ppy.sh/users/{u}"), None),
 ]
 
-‎# منصات تحجب الفحص الآلي: ما نخمّن، نعطيك رابط تفتحه بنفسك
 MANUAL = [
     ("Instagram", "https://www.instagram.com/{u}/"),
     ("Threads",   "https://www.threads.net/@{u}"),
@@ -203,7 +202,6 @@ MANUAL = [
     ("Fiverr",    "https://www.fiverr.com/{u}"),
     ("PayPal.me", "https://www.paypal.me/{u}"),
 ]
-‎# منصات ما لها رابط عام لليوزر (تفحصها من داخل التطبيق)
 IN_APP_ONLY = ["Discord", "Epic Games", "PlayStation", "Xbox", "Riot Games",
                "Rockstar", "Spotify", "Apple Music", "WhatsApp"]
 
@@ -211,7 +209,7 @@ TOTAL = len(RELIABLE) + len(APPROX) + len(MANUAL) + len(IN_APP_ONLY)
 
 
 # ------------------------------------------------------------------
-‎# منطق الفحص
+# Check Logic
 # ------------------------------------------------------------------
 async def run_check(session, sem, name, checker, pattern, u):
     if pattern is not None and not pattern.match(u):
@@ -252,7 +250,7 @@ def build_report(u, rel, apx):
 
     lines += ["", "<b>📱 فحصها من داخل التطبيق:</b> " + "، ".join(IN_APP_ONLY)]
     lines += ["", "ملاحظة: «متاح» يعني ما لقيت حساب بهذا الاسم الحين، "
-‎                  "مو أنه محجوز لك. تأكد عند التسجيل."]
+                  "مو أنه محجوز لك. تأكد عند التسجيل."]
     return "\n".join(lines)
 
 
@@ -269,17 +267,17 @@ def split_message(text, limit=4000):
 
 
 # ------------------------------------------------------------------
-‎# أوامر البوت
+# Bot Commands
 # ------------------------------------------------------------------
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-‎        "أهلاً! أرسل أي اسم مستخدم وأفحص لك توفره.\n\n"
+        "أهلاً! أرسل أي اسم مستخدم وأفحص لك توفره.\n\n"
         f"المنصات المغطاة: {TOTAL}\n"
         f"• {len(RELIABLE)} فحص موثوق\n"
         f"• {len(APPROX)} فحص تقريبي\n"
         f"• {len(MANUAL)} أعطيك رابط تفحصه بنفسك\n"
         f"• {len(IN_APP_ONLY)} من داخل التطبيق فقط\n\n"
-‎        "الشروط: 3 إلى 30 حرف، إنجليزي أو أرقام أو _ . -"
+        "الشروط: 3 إلى 30 حرف، إنجليزي أو أرقام أو _ . -"
     )
 
 
@@ -288,7 +286,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if not USERNAME_RE.match(u):
         await update.message.reply_text(
-‎            "اليوزر غير صالح. استخدم 3 إلى 30 حرف: إنجليزي، أرقام، _ . -")
+            "اليوزر غير صالح. استخدم 3 إلى 30 حرف: إنجليزي، أرقام، _ . -")
         return
 
     user_id = update.effective_user.id
